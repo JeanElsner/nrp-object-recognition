@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ExD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xmlns="http://schemas.humanbrainproject.eu/SP10/2014/ExDConfig"
+     xsi:schemaLocation="http://schemas.humanbrainproject.eu/SP10/2014/ExDConfig ../ExDConfFile.xsd">
+    <name>Object Recognition</name>
+    <thumbnail>object-recognition.png</thumbnail>
+    <description>Experiment for creating sensor data for object recognition tasks</description>
+    <tags>image object recognition dataset sensor data</tags>
+    <timeout>12000</timeout>
+    <configuration type="3d-settings" src="ObjectRecognition.ini"/>
+    <configuration type="brainvisualizer" src="brainvisualizer.json"/>
+	<configuration type="user-interaction-settings" src="ObjectRecognition.uis"/>
+    <maturity>development</maturity>
+    <environmentModel src="image_recognition/image_recognition_world_lighting4.sdf">
+        <robotPose x="0.0" y="-1" z="0.6" roll="0.0" pitch="-0.0" yaw="1.57079632679"/>
+    </environmentModel>
+    <bibiConf src="ObjectRecognition.bibi"/>
+    <experimentControl>
+        <stateMachine xsi:type="SMACHStateMachine"
+                      id="CREATE_DATASET"
+                      src="create_dataset.exd"/>
+    </experimentControl>
+    <cameraPose>
+        <cameraPosition x="4" y="-4" z="2"/>
+        <cameraLookAt x="0" y="-1" z="1"/>
+    </cameraPose>
+</ExD>

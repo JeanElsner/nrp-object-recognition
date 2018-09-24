@@ -1,0 +1,35 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name='chair7'>
+    <pose>0 0 0 0 0 0</pose>
+    <static>1</static>
+    <link name='body'>
+      <collision name="chair7-coll">
+        <pose>0 0 -0.5 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://chair7/meshes/chair7.dae</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name='chair7'>
+        <cast_shadows>1</cast_shadows>
+        <pose>0 0 -0.5 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://chair7/meshes/chair7.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+      <velocity_decay>
+        <linear>0</linear>
+        <angular>0</angular>
+      </velocity_decay>
+      <self_collide>0</self_collide>
+      <kinematic>0</kinematic>
+      <gravity>1</gravity>
+    </link>
+  </model>
+
+
+</sdf>

@@ -1,0 +1,148 @@
+#!/usr/bin/env python
+
+import math
+import time
+import rospy
+import smach
+import smach_ros
+from smach import StateMachine
+from smach import CBState
+from hbp_nrp_excontrol.nrp_states import WaitToClockState
+from hbp_nrp_excontrol.logs import clientLogger
+from geometry_msgs.msg import Point, Quaternion, Vector3
+import sensor_msgs.msg
+from gazebo_msgs.srv import SetModelState
+from gazebo_msgs.msg import ModelState
+from tf.transformations import quaternion_from_euler
+
+FINISHED = 'FINISHED'
+ERROR = 'ERROR'
+PREEMPTED = 'PREEMPTED'
+
+sm = StateMachine(outcomes=[FINISHED, ERROR, PREEMPTED])
+sm.userdata.azimuth = 1
+sm.userdata.elevation = 0
+sm.userdata.model = ''
+
+viewpoint = Vector3(0, -2.1, .95)
+viewpoint_chairs = Vector3(0, -2.3, .95)
+viewpoint_cups = Vector3(0, -2.6, .95)
+
+@smach.cb_interface(input_keys=[''], output_keys=[''], outcomes=['succeeded'])
+def init(userdata):
+    time.sleep(1)
+    clientLogger.advertise('Welcome, this is higihly experimental, don\'t use this :-)')
+    time.sleep(1)
+    return 'succeeded'
+
+set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+
+def position_object_cb(name, pointPosition, qOrientation = Quaternion(0, 0, 0, 0)):
+    @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['succeeded', 'aborted'])
+    def turn_object(userdata):
+        msg = ModelState()
+        msg.model_name = name
+        msg.scale = Vector3(1, 1, 1)
+        msg.pose.position = pointPosition
+        msg.pose.orientation = qOrientation
+        msg.reference_frame = 'world'
+        
+        response = set_model_state(msg)
+		
+        if not response.success:
+            return 'aborted'
+        return 'succeeded'
+
+    return turn_object
+
+def turn_object_cb(model, turn_position, return_posiion, stepSize=0.01):
+    @smach.cb_interface(input_keys=['azimuth', 'elevation'],
+                        output_keys=['azimuth', 'elevation', 'model'],
+                        outcomes=['succeeded', 'ongoing'])
+    def move_along(userdata):
+        direction = Vector3(return_posiion.x - turn_position.x, return_posiion.y - turn_position.y,
+                            return_posiion.z - turn_position.z)
+        userdata.model = model
+        step_num = 18.
+        elevation_step_num = 8. # starting at zero, so 9 in total
+        
+        step = 1/step_num * userdata.azimuth
+        elevation_step = 1/elevation_step_num * userdata.elevation
+        
+        x = -90 * elevation_step
+        y = 0
+        z = 360 * step
+        #x = 90*elevation_step*math.cos(math.radians(z))
+        #y = 90*elevation_step*math.sin(math.radians(z))
+        
+        q = quaternion_from_euler(math.radians(x), math.radians(y), math.radians(z), axes='rxyz')
+        position_object_cb(model, turn_position, Quaternion(q[0],q[1],q[2],q[3]))(userdata)
+        #time.sleep(1)
+        
+        if (userdata.azimuth < step_num):
+            userdata.azimuth = userdata.azimuth + 1
+            return 'ongoing'
+        elif (userdata.elevation < elevation_step_num):
+            userdata.elevation = userdata.elevation + 1
+            userdata.azimuth = 1
+            return 'ongoing'
+        else:
+            position_object_cb(model, return_posiion, Quaternion(0,0,0,1))(userdata)
+            #time.sleep(1)
+            userdata.elevation = 0
+            userdata.azimuth = 1
+            return 'succeeded'
+
+    return move_along
+
+def left_eye_cb(userdata, msg):
+    return write_image(userdata, msg, 'left')
+
+def right_eye_cb(userdata, msg):
+    return write_image(userdata, msg, 'right')
+
+def write_image(userdata, msg, side):
+    if msg is None:
+        return True
+    from cv_bridge import CvBridge, CvBridgeError
+    bridge = CvBridge()
+    cv_image = bridge.imgmsg_to_cv2(msg, "rgb8")
+    import cv2
+    dst = cv2.resize(cv_image[0:240,40:280], (96, 96))
+    cv2.imwrite('/home/jean/thesis_dataset/%s/%s_%d_%d.png' % (side, sm.userdata.model, sm.userdata.elevation, sm.userdata.azimuth), dst)
+    #time.sleep(1)
+    return False
+
+def add_turn(model, obj_num, transition_succeeded = 'FINISHED', z = .5, y = 0, x_step = 1.5):
+    u = model.upper()
+    l = model.lower()
+
+    for idx in range(1, obj_num+1):
+
+        StateMachine.add('LEFT_IMAGE_{}{}'.format(u, idx),
+                         smach_ros.MonitorState("/icub_model/left_eye_camera/image_raw", sensor_msgs.msg.Image, left_eye_cb),
+                         transitions={'invalid':'RIGHT_IMAGE_{}{}'.format(u, idx), 'valid':'LEFT_IMAGE_{}{}'.format(u, idx), 'preempted':'LEFT_IMAGE_{}{}'.format(u, idx)})
+    
+        StateMachine.add('RIGHT_IMAGE_{}{}'.format(u, idx),
+                         smach_ros.MonitorState("/icub_model/right_eye_camera/image_raw", sensor_msgs.msg.Image, right_eye_cb),
+                         transitions={'invalid':'TURN_{}{}'.format(u, idx), 'valid':'RIGHT_IMAGE_{}{}'.format(u, idx), 'preempted':'RIGHT_IMAGE_{}{}'.format(u, idx)})
+    
+        StateMachine.add('TURN_{}{}'.format(u, idx),
+                         CBState(
+                             turn_object_cb('{}{}'.format(l, idx), viewpoint, Vector3((idx-1)*x_step, y, z))),
+                         transitions={'succeeded': 'TURN_{}{}'.format(u, idx+1) if idx != obj_num else transition_succeeded,
+                                      'ongoing': 'LEFT_IMAGE_{}{}'.format(u, idx)})
+
+with sm:
+    StateMachine.add('INIT',
+                     CBState(init),
+                     transitions={'succeeded': 'INITIAL_WAITING'})
+    StateMachine.add('INITIAL_WAITING',
+                     WaitToClockState(1),
+                     {'valid': 'INITIAL_WAITING', 'invalid': 'TURN_CHAIR1',
+                      'preempted': PREEMPTED})
+    add_turn('chair', y = 0, transition_succeeded = 'TURN_CUTLERY1')
+    add_turn('cutlery', y = 1.5, transition_succeeded = 'TURN_LIGHTER1')
+    add_turn('lighter', y = 3, transition_succeeded = 'TURN_CHESS1')
+    add_turn('chess', y = 4.5, transition_succeeded = 'TURN_CUP1')
+    add_turn('cup', y = 6, transition_succeeded = 'FINISHED')
