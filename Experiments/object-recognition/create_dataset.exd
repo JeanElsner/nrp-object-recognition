@@ -39,7 +39,7 @@ set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
 
 def position_object_cb(name, pointPosition, qOrientation = Quaternion(0, 0, 0, 0)):
     @smach.cb_interface(input_keys=[], output_keys=[], outcomes=['succeeded', 'aborted'])
-    def turn_object(userdata):
+    def position_object(userdata):
         msg = ModelState()
         msg.model_name = name
         msg.scale = Vector3(1, 1, 1)
@@ -59,7 +59,7 @@ def turn_object_cb(model, turn_position, return_posiion, stepSize=0.01):
     @smach.cb_interface(input_keys=['azimuth', 'elevation'],
                         output_keys=['azimuth', 'elevation', 'model'],
                         outcomes=['succeeded', 'ongoing'])
-    def move_along(userdata):
+    def turn_object(userdata):
         direction = Vector3(return_posiion.x - turn_position.x, return_posiion.y - turn_position.y,
                             return_posiion.z - turn_position.z)
         userdata.model = model

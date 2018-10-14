@@ -4,7 +4,7 @@
      xsi:schemaLocation="http://schemas.humanbrainproject.eu/SP10/2014/ExDConfig ../ExDConfFile.xsd">
     <name>Object Recognition</name>
     <thumbnail>object-recognition.png</thumbnail>
-    <description>Experiment for creating sensor data for object recognition tasks</description>
+    <description>Experiment for creating sensor data for object recognition tasks.</description>
     <tags>image object recognition dataset sensor data</tags>
     <timeout>12000</timeout>
     <configuration type="3d-settings" src="ObjectRecognition.ini"/>
