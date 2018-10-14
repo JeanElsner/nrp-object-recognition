@@ -4,4 +4,4 @@ an iCub robot rotating it so as to cover the entire solid angle and record senso
 The recorded sensor data may be of different modalities (spike trains, images, point clouds etc.).
 Additionally several lighting setups are provided so as to augment the dataset.
 
-![Experiment](https://github.com/JeanElsner/nrp-object-recognition/blob/master/Experiment/object-recognition/object-recognition.png?raw=true)
+![Experiment](https://raw.githubusercontent.com/JeanElsner/nrp-object-recognition/master/Experiments/object-recognition/object-recognition.png)
